@@ -1,0 +1,61 @@
+# ========== 07 PVC + PV（持久化存储）==========
+# PV（PersistentVolume）：一块可用的存储
+# PVC（PersistentVolumeClaim）：应用"申请"存储的凭证，PVC 绑定到 PV
+# 单节点本地环境用 hostPath 或 local 卷演示；生产用云盘/NFS 等
+# 学习点：
+#   1. 生命周期：PVC 申请 → 动态/静态供给 → 绑定 → 应用挂载
+#   2. hostPath：直接映射节点目录（单节点演示用，生产慎用）
+#   3. 数据持久：Pod 删了重建数据还在
+#   4. StorageClass：动态供给的"模板"（local-path 等）
+#
+# 用法：
+#   kubectl apply -f 07-pvc.yaml
+#   kubectl get pv,pvc
+#   kubectl exec -it pod/data-demo -- sh
+#     echo "hello" > /mnt/data/hello.txt && exit
+#   kubectl delete pod data-demo
+#   kubectl apply -f 07-pvc.yaml      # 重新创建 Pod
+#   kubectl exec -it pod/data-demo -- cat /mnt/data/hello.txt   # 数据还在！
+
+# 静态供给：手动创建 PV
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: demo-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /tmp/k8s-demo-pv
+---
+# 申请存储
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demo-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# 使用 PVC 的 Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: data-demo
+spec:
+  containers:
+    - name: demo
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - name: data
+          mountPath: /mnt/data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: demo-pvc

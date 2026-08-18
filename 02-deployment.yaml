@@ -1,0 +1,52 @@
+# ========== 02 Deployment（滚动更新/回滚）==========
+# Deployment 是"无状态应用"的标准控制器，负责维持期望副本数、滚动更新、回滚
+# 学习点：
+#   1. replicas=3：期望副本数
+#   2. strategy.rollingUpdate：滚动更新策略（maxUnavailable/maxSurge）
+#   3. selector.matchLabels 必须与 template.metadata.labels 一致（不可变）
+#   4. 更新/回滚历史默认保留 10 个 revision
+#
+# 用法：
+#   kubectl apply -f 02-deployment.yaml
+#   kubectl get deploy,rs,pods          # 看 Deployment / ReplicaSet / Pod
+#   kubectl rollout status deploy/demo  # 看滚动状态
+#
+# --- 滚动更新演示（v1 -> v2）---
+#   kubectl set image deploy/demo demo=demo:v2
+#   kubectl rollout status deploy/demo            # 等待完成
+#   kubectl get rs                               # 会看到新 ReplicaSet 出现、旧的缩为 0
+#   curl localhost:8080                           # 输出变 v2
+#
+# --- 回滚演示 ---
+#   kubectl rollout undo deploy/demo              # 回滚到上一个版本
+#   kubectl rollout history deploy/demo           # 查看历史 revision
+#   kubectl rollout undo deploy/demo --to-revision=1  # 回滚到指定版本
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1      # 更新时最多允许 1 个不可用
+      maxSurge: 1            # 更新时最多允许超出期望 1 个
+  selector:
+    matchLabels:
+      app: demo
+  template:
+    metadata:
+      labels:
+        app: demo
+    spec:
+      containers:
+        - name: demo
+          image: demo:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+            initialDelaySeconds: 2
+            periodSeconds: 3

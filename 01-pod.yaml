@@ -1,0 +1,40 @@
+# ========== 01 基础 Pod ==========
+# Pod 是 K8s 的最小调度单元，一个 Pod 里可以有一个或多个容器（共享网络/IP/存储）
+# 学习点：
+#   1. imagePullPolicy=IfNotPresent：优先用本地镜像（OrbStack 与 docker 共享镜像）
+#   2. 资源 requests/limits：requests 是调度时的保证量，limits 是硬上限
+#   3. livenessProbe 存活探针：挂了自动重启容器
+#   4. readinessProbe 就绪探针：就绪后才接收流量
+# 用法：
+#   kubectl apply -f 01-pod.yaml
+#   kubectl get pod -o wide          # 查看 Pod 及 IP
+#   kubectl port-forward pod/demo-pod 8080:8080   # 端口转发访问
+#   kubectl exec -it pod/demo-pod -- sh            # 进入容器
+#   kubectl delete -f 01-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-pod
+  labels:
+    app: demo
+spec:
+  containers:
+    - name: demo
+      image: demo:v1
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: APP_NAME
+          value: "pod-demo"
+      ports:
+        - containerPort: 8080
+      resources:
+        requests: { cpu: "100m", memory: "64Mi" }
+        limits: { cpu: "500m", memory: "128Mi" }
+      livenessProbe:            # 存活探针：失败重启
+        httpGet: { path: /, port: 8080 }
+        initialDelaySeconds: 5
+        periodSeconds: 10
+      readinessProbe:           # 就绪探针：就绪才进 Service
+        httpGet: { path: /, port: 8080 }
+        initialDelaySeconds: 3
+        periodSeconds: 5

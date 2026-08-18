@@ -1,0 +1,36 @@
+# ========== 05 Ingress（七层路由）==========
+# Ingress 是把外部 HTTP/HTTPS 流量按域名/路径路由到内部 Service 的入口
+# 需要先装 ingress-nginx controller（已经装好）
+# 学习点：
+#   1. host：按域名路由；路径按 prefix 匹配
+#   2. 一个 Ingress 可以配多个 host / 多个 path
+#   3. OrbStack 下 LoadBalancer 的端口映射到 localhost，用
+#      curl -H "Host: demo.local" http://localhost/ 模拟域名访问
+#   4. 看 controller 日志：kubectl logs -n ingress-nginx deploy/ingress-nginx-controller
+#
+# 用法：
+#   kubectl apply -f 02-deployment.yaml && kubectl apply -f 03-service.yaml
+#   kubectl apply -f 05-ingress.yaml
+#   kubectl get ingress
+#   # 访问（用 Host 头模拟域名）：
+#   curl -H "Host: demo.local" http://localhost/
+#   # 也可以改 /etc/hosts 把 demo.local 指向 127.0.0.1 后直接 curl http://demo.local/
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /   # 去掉匹配到的路径前缀
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: demo.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: demo
+                port:
+                  number: 8080
